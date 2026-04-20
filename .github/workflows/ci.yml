@@ -61,6 +61,9 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install gcc-multilib lib32stdc++-13-dev
+      - name: Install setuptools for distutils shim
+        if: ${{ startsWith(matrix.id, 'windows-') }}
+        run: pip install setuptools
       - name: Build
         if: ${{ startsWith(matrix.id, 'windows-') }}
         run: |
