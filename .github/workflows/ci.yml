@@ -67,7 +67,8 @@ jobs:
           .\configure `
               --host=${{ matrix.id }} `
               --enable-compiler-backend `
-              ${{ env.FRIDA_CORE_OPTIONS }}
+              ${{ env.FRIDA_CORE_OPTIONS }} `
+              -- --force-fallback-for=openssl
           .\make
         env:
           MSYS2_LOCATION: ${{ steps.msys2.outputs.msys2-location }}
@@ -103,12 +104,12 @@ jobs:
     strategy:
       matrix:
         include:
-          - { id: windows-x86_64-mingw, opts: '--host=x86_64-w64-mingw32 --without-prebuilds=sdk:host', pkg: g++-mingw-w64-x86-64        }
-          - { id: windows-x86-mingw,    opts: '--host=i686-w64-mingw32 --without-prebuilds=sdk:host',   pkg: g++-mingw-w64-i686          }
-          - { id: linux-mips,           opts: '--host=mips-linux-gnu',                                  pkg: g++-mips-linux-gnu          }
-          - { id: linux-mipsel,         opts: '--host=mipsel-linux-gnu',                                pkg: g++-mipsel-linux-gnu        }
-          - { id: linux-mips64,         opts: '--host=mips64-linux-gnuabi64',                           pkg: g++-mips64-linux-gnuabi64   }
-          - { id: linux-mips64el,       opts: '--host=mips64el-linux-gnuabi64',                         pkg: g++-mips64el-linux-gnuabi64 }
+          - { id: windows-x86_64-mingw, opts: '--host=x86_64-w64-mingw32 --without-prebuilds=sdk:host', extra: '-- --force-fallback-for=openssl', pkg: g++-mingw-w64-x86-64        }
+          - { id: windows-x86-mingw,    opts: '--host=i686-w64-mingw32 --without-prebuilds=sdk:host',                                             pkg: g++-mingw-w64-i686          }
+          - { id: linux-mips,           opts: '--host=mips-linux-gnu',                                                                            pkg: g++-mips-linux-gnu          }
+          - { id: linux-mipsel,         opts: '--host=mipsel-linux-gnu',                                                                          pkg: g++-mipsel-linux-gnu        }
+          - { id: linux-mips64,         opts: '--host=mips64-linux-gnuabi64',                                                                     pkg: g++-mips64-linux-gnuabi64   }
+          - { id: linux-mips64el,       opts: '--host=mips64el-linux-gnuabi64',                                                                   pkg: g++-mips64el-linux-gnuabi64 }
       fail-fast: false
     runs-on: ubuntu-latest
     steps:
@@ -130,7 +131,8 @@ jobs:
           ./configure \
               ${{ matrix.opts }} \
               ${{ !contains(matrix.id, 'mips') && '--enable-compiler-backend' || '' }} \
-              ${{ env.FRIDA_CORE_OPTIONS }}
+              ${{ env.FRIDA_CORE_OPTIONS }} \
+              ${{ matrix.extra }}
           make
       - name: Upload devkit
         if: ${{ !startsWith(matrix.id, 'linux-') }}
