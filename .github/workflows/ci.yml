@@ -590,7 +590,7 @@ jobs:
           path: FridaCore.xcframework
 
   publish-xcframework:
-    if: ${{ github.ref_type == 'tag' && needs.xcframework.result == 'success' }}
+    if: ${{ !cancelled() && github.ref_type == 'tag' && needs.xcframework.result == 'success' }}
     runs-on: macos-latest
     needs:
       - xcframework
