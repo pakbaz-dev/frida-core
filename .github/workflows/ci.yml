@@ -496,6 +496,7 @@ jobs:
 
   xcframework:
     name: Build FridaCore.xcframework
+    if: ${{ !cancelled() }}
     runs-on: macos-latest
     needs:
       - native
