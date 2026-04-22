@@ -768,22 +768,61 @@ tls_provider_vala_args = []
 if have_shared_glib
   tls_provider_dep = gio_dep
 else
-  tls_provider_dep = dependency('gioopenssl', required: get_option('connectivity'), default_options: [
-    'gnutls=disabled',
-    'openssl=enabled',
-    'libproxy=disabled',
-    'gnome_proxy=disabled',
-    'tests=false',
-  ])
+  use_apple_tls = false
+  if host_os_family == 'darwin'
+    apple_tls_deployment_check = '''
+#include <Availability.h>
+
+#if defined (__MAC_OS_X_VERSION_MIN_REQUIRED) && __MAC_OS_X_VERSION_MIN_REQUIRED < 150000
+# error macOS deployment target below 15.0
+#endif
+#if defined (__IPHONE_OS_VERSION_MIN_REQUIRED) && __IPHONE_OS_VERSION_MIN_REQUIRED < 180000
+# error iOS deployment target below 18.0
+#endif
+#if defined (__TV_OS_VERSION_MIN_REQUIRED) && __TV_OS_VERSION_MIN_REQUIRED < 180000
+# error tvOS deployment target below 18.0
+#endif
+#if defined (__WATCH_OS_VERSION_MIN_REQUIRED) && __WATCH_OS_VERSION_MIN_REQUIRED < 110000
+# error watchOS deployment target below 11.0
+#endif
+'''
+    use_apple_tls = cc.compiles(apple_tls_deployment_check, name: 'Apple TLS backend deployment target')
+  endif
+  if use_apple_tls
+    tls_provider_name = 'gioapple'
+    tls_provider_define_name = 'HAVE_GIOAPPLE'
+    tls_provider_backend_options = [
+      'gnutls=disabled',
+      'openssl=disabled',
+      'apple=enabled',
+    ]
+  else
+    tls_provider_name = 'gioopenssl'
+    tls_provider_define_name = 'HAVE_GIOOPENSSL'
+    tls_provider_backend_options = [
+      'gnutls=disabled',
+      'openssl=enabled',
+      'apple=disabled',
+    ]
+  endif
+  tls_provider_dep = dependency(tls_provider_name,
+    required: get_option('connectivity'),
+    default_options: [
+      tls_provider_backend_options,
+      'libproxy=disabled',
+      'gnome_proxy=disabled',
+      'tests=false',
+    ],
+  )
   if tls_provider_dep.found()
     tls_provider_vala_args += [
-      '--pkg=gioopenssl',
+      '--pkg=' + tls_provider_name,
       '--vapidir=' + tls_provider_dep.get_variable('vapidir'),
     ]
-    cdata.set('HAVE_GIOOPENSSL', 1)
-    vala_flags += ['--define=HAVE_GIOOPENSSL']
+    cdata.set(tls_provider_define_name, 1)
+    vala_flags += ['--define=' + tls_provider_define_name]
     backend_deps_private += tls_provider_dep
-    backend_reqs_private += 'gioopenssl'
+    backend_reqs_private += tls_provider_name
   endif
 endif
 

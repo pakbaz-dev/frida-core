@@ -39,7 +39,9 @@ namespace Frida.Portal {
 	};
 
 	private static int main (string[] args) {
-#if HAVE_GIOOPENSSL
+#if HAVE_GIOAPPLE
+		GIOApple.register ();
+#elif HAVE_GIOOPENSSL
 		GIOOpenSSL.register ();
 #endif
 

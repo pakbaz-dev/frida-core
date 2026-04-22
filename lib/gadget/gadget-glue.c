@@ -9,7 +9,9 @@
 # include <signal.h>
 #endif
 #include <gumjs/gumscriptbackend.h>
-#ifdef HAVE_GIOOPENSSL
+#if defined (HAVE_GIOAPPLE)
+# include <gioapple.h>
+#elif defined (HAVE_GIOOPENSSL)
 # include <gioopenssl.h>
 #endif
 
@@ -91,7 +93,9 @@ frida_gadget_environment_init (void)
 
   g_thread_set_garbage_handler (_frida_gadget_on_pending_thread_garbage, NULL);
 
-#ifdef HAVE_GIOOPENSSL
+#if defined (HAVE_GIOAPPLE)
+  g_io_module_apple_register ();
+#elif defined (HAVE_GIOOPENSSL)
   g_io_module_openssl_register ();
 #endif
 

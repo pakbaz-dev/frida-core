@@ -1,7 +1,9 @@
 #include "frida-core.h"
 
 #include <gum/gum.h>
-#ifdef HAVE_GIOOPENSSL
+#if defined (HAVE_GIOAPPLE)
+# include <gioapple.h>
+#elif defined (HAVE_GIOOPENSSL)
 # include <gioopenssl.h>
 #endif
 
@@ -48,7 +50,9 @@ frida_init_with_runtime (FridaRuntime rt)
 #endif
     frida_error_quark (); /* Initialize early so GDBus will pick it up */
 
-#ifdef HAVE_GIOOPENSSL
+#if defined (HAVE_GIOAPPLE)
+    g_io_module_apple_register ();
+#elif defined (HAVE_GIOOPENSSL)
     g_io_module_openssl_register ();
 #endif
 
