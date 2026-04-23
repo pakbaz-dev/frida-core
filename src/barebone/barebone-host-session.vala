@@ -14,15 +14,21 @@ namespace Frida {
 
 	public sealed class BareboneHostSessionProvider : Object, HostSessionProvider {
 		public string id {
-			get { return "barebone"; }
+			get {
+				return "barebone";
+			}
 		}
 
 		public string name {
-			get { return "GDB Remote Stub"; }
+			get {
+				return "GDB Remote Stub";
+			}
 		}
 
 		public Variant? icon {
-			get { return null; }
+			get {
+				return _icon;
+			}
 		}
 
 		public HostSessionProviderKind kind {
@@ -31,7 +37,12 @@ namespace Frida {
 			}
 		}
 
+		private static Variant _icon;
 		private BareboneHostSession? host_session;
+
+		static construct {
+			_icon = make_provider_icon (Frida.Data.Icons.get_barebone_png_blob ().data);
+		}
 
 		public async void close (Cancellable? cancellable) throws IOError {
 			if (host_session != null) {

@@ -676,6 +676,34 @@ if have_barebone_backend
   subdir('barebone')
 endif
 
+icons_data = custom_target('frida-data-icons',
+  input: [
+    'icons.resources',
+    'icons' / 'fruity-network.png',
+    'icons' / 'droidy.png',
+    'icons' / 'socket.png',
+    'icons' / 'barebone.png',
+    'icons' / 'portal.png',
+  ],
+  output: [
+    'frida-data-icons.vapi',
+    'frida-data-icons.h',
+    'frida-data-icons.c',
+    'frida-data-icons-blob' + resource_blob_extension,
+  ],
+  command: [
+    resource_compiler_cmd_array,
+    '-c', '@INPUT0@',
+    '-o', meson.current_build_dir() / 'frida-data-icons',
+    '@INPUT1@',
+    '@INPUT2@',
+    '@INPUT3@',
+    '@INPUT4@',
+    '@INPUT5@',
+  ],
+)
+backend_sources += [icons_data]
+
 if host_os_family != 'windows'
   backend_vala_args_private += '--pkg=posix'
 endif

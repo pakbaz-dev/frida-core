@@ -57,7 +57,7 @@ namespace Frida {
 		}
 
 		public Variant? icon {
-			get { return device.icon; }
+			get { return device.icon ?? _network_icon; }
 		}
 
 		public HostSessionProviderKind kind {
@@ -70,6 +70,11 @@ namespace Frida {
 
 		private FruityHostSession? host_session;
 		private string _name;
+		private static Variant _network_icon;
+
+		static construct {
+			_network_icon = make_provider_icon (Frida.Data.Icons.get_fruity_network_png_blob ().data);
+		}
 
 		public FruityHostSessionProvider (Fruity.Device device) {
 			Object (device: device);
