@@ -71,7 +71,7 @@ namespace Frida {
 		}
 
 		public Variant? icon {
-			get { return null; }
+			get { return _icon; }
 		}
 
 		public HostSessionProviderKind kind {
@@ -80,7 +80,12 @@ namespace Frida {
 			}
 		}
 
+		private static Variant _icon;
 		private SimmyHostSession? host_session;
+
+		static construct {
+			_icon = make_provider_icon (Frida.Data.Icons.get_simmy_png_blob ().data);
+		}
 
 		public SimmyHostSessionProvider (Simmy.Device device) {
 			Object (device: device);

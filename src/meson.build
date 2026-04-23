@@ -679,6 +679,8 @@ endif
 icons_data = custom_target('frida-data-icons',
   input: [
     'icons.resources',
+    'icons' / 'local.png',
+    'icons' / 'simmy.png',
     'icons' / 'fruity-network.png',
     'icons' / 'droidy.png',
     'icons' / 'socket.png',
@@ -700,6 +702,8 @@ icons_data = custom_target('frida-data-icons',
     '@INPUT3@',
     '@INPUT4@',
     '@INPUT5@',
+    '@INPUT6@',
+    '@INPUT7@',
   ],
 )
 backend_sources += [icons_data]

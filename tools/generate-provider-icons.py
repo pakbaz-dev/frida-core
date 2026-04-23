@@ -22,12 +22,57 @@ def main() -> None:
 
 def icons() -> list[tuple[str, str]]:
     return [
+        ("local", svg_local()),
+        ("simmy", svg_simmy()),
         ("fruity-network", svg_fruity_network()),
         ("droidy", svg_droidy()),
         ("socket", svg_socket()),
         ("barebone", svg_barebone()),
         ("portal", svg_portal()),
     ]
+
+
+def svg_local() -> str:
+    return f"""\
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <defs>
+    <linearGradient id="case" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="{SLATE_LIGHT}"/>
+      <stop offset="1" stop-color="{SLATE_DARK}"/>
+    </linearGradient>
+  </defs>
+  <rect x="6" y="10" width="52" height="36" rx="3.5" fill="url(#case)"/>
+  <rect x="9" y="13" width="46" height="30" rx="1.8" fill="{SCREEN}"/>
+  <path d="M 17 22 L 23 28 L 17 34" stroke="#FFFFFF" stroke-width="2.8"
+        stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+  <rect x="27" y="31" width="10" height="2.8" rx="0.7" fill="#FFFFFF" opacity="0.85"/>
+  <rect x="28" y="46" width="8"  height="5" fill="url(#case)"/>
+  <rect x="16" y="51" width="32" height="4" rx="2" fill="url(#case)"/>
+</svg>
+"""
+
+
+def svg_simmy() -> str:
+    return f"""\
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <defs>
+    <linearGradient id="phone" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="{CHROME_LIGHT}"/>
+      <stop offset="1" stop-color="{CHROME_DARK}"/>
+    </linearGradient>
+    <linearGradient id="screen" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="{SIM_SCREEN_TOP}"/>
+      <stop offset="1" stop-color="{SIM_SCREEN_BOTTOM}"/>
+    </linearGradient>
+  </defs>
+  <rect x="21" y="6"   width="22" height="52" rx="5" fill="url(#phone)"/>
+  <rect x="22.5" y="10" width="19" height="42" rx="2.5" fill="url(#screen)"/>
+  <circle cx="27.5" cy="14.5" r="1.6" fill="{TL_RED}"/>
+  <circle cx="32"   cy="14.5" r="1.6" fill="{TL_YELLOW}"/>
+  <circle cx="36.5" cy="14.5" r="1.6" fill="{TL_GREEN}"/>
+  <rect x="29" y="54" width="6" height="1.3" rx="0.65" fill="{CHROME_DARK}" opacity="0.7"/>
+</svg>
+"""
 
 
 def svg_fruity_network() -> str:
@@ -179,6 +224,14 @@ ICONS_DIR = ROOT / "src" / "icons"
 BLUE = "#2E77E4"
 BLUE_LIGHT = "#5AAEF5"
 BLUE_DARK = "#1A5FB4"
+
+CHROME_LIGHT = "#EFEEF1"
+CHROME_DARK = "#9A9996"
+SIM_SCREEN_TOP = "#3D3846"
+SIM_SCREEN_BOTTOM = "#1F1B2B"
+TL_RED = "#FF5F56"
+TL_YELLOW = "#FFBD2E"
+TL_GREEN = "#27C93F"
 
 SLATE_LIGHT = "#8B8A95"
 SLATE_DARK = "#4E4C58"

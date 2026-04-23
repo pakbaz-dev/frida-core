@@ -322,7 +322,7 @@ namespace Frida {
 		}
 
 		protected virtual Variant? load_icon () {
-			return null;
+			return make_provider_icon (Frida.Data.Icons.get_local_png_blob ().data);
 		}
 
 		public async void close (Cancellable? cancellable) throws IOError {
