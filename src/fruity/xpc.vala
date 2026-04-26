@@ -1523,13 +1523,16 @@ namespace Frida.Fruity {
 	}
 
 	private uint8[] make_random_v4_uuid () {
-		uint8 uuid[16];
-		OpenSSL.Rng.generate (uuid);
-
-		const uint8 uuid_version = 4;
-		uuid[6] = (uuid_version << 4) | (uuid[6] & 0xf);
-		uuid[8] = 0x80 | (uuid[8] & 0x3f);
-
+		var hex = Uuid.string_random ().replace ("-", "");
+		var uuid = new uint8[16];
+		for (int i = 0; i < uuid.length; i++)
+			uuid[i] = (hex_nibble (hex[i * 2]) << 4) | hex_nibble (hex[i * 2 + 1]);
 		return uuid;
+	}
+
+	private static uint8 hex_nibble (char c) {
+		if (c >= '0' && c <= '9')
+			return (uint8) (c - '0');
+		return (uint8) (c - 'a' + 10);
 	}
 }
