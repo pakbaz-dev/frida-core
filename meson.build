@@ -807,8 +807,7 @@ else
   endif
   tls_provider_dep = dependency(tls_provider_name,
     required: get_option('connectivity'),
-    default_options: [
-      tls_provider_backend_options,
+    default_options: tls_provider_backend_options + [
       'libproxy=disabled',
       'gnome_proxy=disabled',
       'tests=false',
