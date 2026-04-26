@@ -845,8 +845,12 @@ if nice_dep.found()
 
   cdata.set('HAVE_NICE', 1)
   vala_flags += ['--define=HAVE_NICE']
-  backend_deps_private += [nice_dep, openssl_dep, usrsctp_dep]
-  backend_reqs_private += ['nice', 'openssl', 'usrsctp']
+  backend_deps_private += [nice_dep, usrsctp_dep]
+  backend_reqs_private += ['nice', 'usrsctp']
+  if host_os != 'macos'
+    backend_deps_private += openssl_dep
+    backend_reqs_private += 'openssl'
+  endif
 
   if host_os_family in ['darwin', 'freebsd', 'qnx']
     cdata.set('HAVE_SCONN_LEN', 1)

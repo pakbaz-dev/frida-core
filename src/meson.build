@@ -628,13 +628,11 @@ if have_fruity_backend
     backend_sources += 'fruity' / 'device-monitor-unix.c'
   endif
 
-  backend_deps += openssl_dep
-  backend_vala_args += [
-    '--pkg=libnghttp2',
-    '--pkg=openssl',
-  ]
+  backend_vala_args += '--pkg=libnghttp2'
   if host_os != 'macos'
+    backend_deps += openssl_dep
     backend_vala_args += [
+      '--pkg=openssl',
       '--pkg=libngtcp2',
       ngtcp2_crypto_quictls_dep.found() ? '--pkg=libngtcp2_crypto_quictls' : '--pkg=libngtcp2_crypto_ossl',
       '--pkg=libusb-1.0',
