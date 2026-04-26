@@ -45,6 +45,7 @@ if no_overridden_compat_bits
     meson.global_build_root(),
     frida_version,
     host_os,
+    host_os_family,
     host_abi,
     host_config,
     ','.join(get_option('compat')),

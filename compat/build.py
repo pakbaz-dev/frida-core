@@ -9,6 +9,7 @@ import os
 from pathlib import Path
 import pickle
 import platform
+import re
 import shlex
 import shutil
 import subprocess
@@ -35,6 +36,7 @@ def main(argv):
     command.add_argument("top_builddir", help="top build directory", type=Path)
     command.add_argument("frida_version", help="the Frida version")
     command.add_argument("host_os", help="operating system binaries are being built for")
+    command.add_argument("host_os_family", help="operating system family, e.g. darwin")
     command.add_argument("host_arch", help="architecture binaries are being built for")
     command.add_argument("host_config", help="configuration binaries are being built for")
     command.add_argument("compat", help="support for targets with a different architecture",
@@ -49,6 +51,7 @@ def main(argv):
                                                  args.top_builddir,
                                                  args.frida_version,
                                                  args.host_os,
+                                                 args.host_os_family,
                                                  args.host_arch,
                                                  args.host_config if args.host_config else None,
                                                  args.compat,
@@ -115,6 +118,7 @@ def setup(role: Role,
           top_builddir: Path,
           frida_version: str,
           host_os: str,
+          host_os_family: str,
           host_arch: str,
           host_config: Optional[str],
           compat: set[str],
@@ -378,7 +382,7 @@ def setup(role: Role,
         else:
             allowed_prebuilds = None
 
-        state = State(role, builddir, top_builddir, frida_version, host_os, host_config, glib_flavor, allowed_prebuilds, outputs)
+        state = State(role, builddir, top_builddir, frida_version, host_os, host_os_family, host_config, glib_flavor, allowed_prebuilds, outputs)
         serialized_state = base64.b64encode(pickle.dumps(state)).decode('ascii')
 
         if missing:
@@ -414,6 +418,7 @@ class State:
     top_builddir: Path
     frida_version: str
     host_os: str
+    host_os_family: str
     host_config: Optional[str]
     glib_flavor: str
     allowed_prebuilds: Optional[set[str]]
@@ -511,6 +516,7 @@ def compile(privdir: Path, state: State):
                       host_machine=host_machine,
                       environ={**build_env, **group.extra_environ},
                       allowed_prebuilds=allowed,
+                      apple_min_os=detect_parent_apple_min_os(top_builddir, state.host_os, state.host_os_family),
                       extra_meson_options=[
                           "-Dcompiler_backend=disabled",
                           "-Dassets=installed",
@@ -670,6 +676,19 @@ def ensure_submodules_checked_out(releng_location: Path):
                        stderr=subprocess.STDOUT,
                        encoding="utf-8",
                        check=True)
+
+
+def detect_parent_apple_min_os(top_builddir: Path,
+                               host_os: str,
+                               host_os_family: str) -> Optional[Mapping[str, str]]:
+    if host_os_family != "darwin":
+        return None
+    pattern = re.compile(r"-target['\"],\s*['\"][^-]+-apple-" + re.escape(host_os) + r"([0-9.]+)")
+    for native_file in top_builddir.glob(f"frida-{host_os}-*.txt"):
+        match = pattern.search(native_file.read_text(encoding="utf-8"))
+        if match is not None:
+            return {host_os: match.group(1)}
+    return None
 
 
 def detect_relevant_subprojects(releng_location: Path) -> dict[str, Path]:
