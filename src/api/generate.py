@@ -247,6 +247,23 @@ def emit_gir(api: ApiSpec, core_gir: str, base_gir: str, output_dir: Path) -> st
             if owner is not None and owner in object_type_names:
                 merged_namespace.append(record)
 
+    known_names = object_type_names | enum_type_names | error_type_names
+    referenced_names = set()
+    for elem in merged_namespace.iter():
+        type_name = elem.get("name")
+        if type_name is None:
+            continue
+        for prefix in ("Frida.", "FridaBase."):
+            if type_name.startswith(prefix):
+                referenced_names.add(type_name[len(prefix):])
+                break
+    needed_names = referenced_names - known_names
+    for source_root in [core_root, base_root]:
+        source_namespace = source_root.find("namespace", GIR_NAMESPACES)
+        for callback in source_namespace.findall("callback", GIR_NAMESPACES):
+            if callback.get("name") in needed_names:
+                merged_namespace.append(callback)
+
     ET.indent(merged_root, space="  ")
     result = ET.tostring(merged_root,
                          encoding="unicode",
