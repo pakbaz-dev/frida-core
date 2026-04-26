@@ -3624,7 +3624,7 @@ namespace Frida {
 #if !HAVE_EMBEDDED_ASSETS
 	internal string helper_path;
 	internal string agent_path;
-#if HAVE_COMPILER_BACKEND
+#if COMPILER_BACKEND_INSTALLED_LIBRARY || COMPILER_BACKEND_INSTALLED_EXECUTABLE
 	internal string compiler_backend_path;
 #endif
 
@@ -3632,7 +3632,7 @@ namespace Frida {
 		var location = AssetLocation.detect ();
 		helper_path = location.derive_asset_path ("<arch>", Config.FRIDA_HELPER_NAME);
 		agent_path = location.derive_asset_path ("<arch>", Config.FRIDA_AGENT_NAME);
-#if HAVE_COMPILER_BACKEND
+#if COMPILER_BACKEND_INSTALLED_LIBRARY || COMPILER_BACKEND_INSTALLED_EXECUTABLE
 		compiler_backend_path = location.derive_plugin_path (Config.FRIDA_COMPILER_BACKEND_NAME);
 #endif
 	}
@@ -3640,7 +3640,7 @@ namespace Frida {
 	public void _deinit_asset_paths () {
 		helper_path = null;
 		agent_path = null;
-#if HAVE_COMPILER_BACKEND
+#if COMPILER_BACKEND_INSTALLED_LIBRARY || COMPILER_BACKEND_INSTALLED_EXECUTABLE
 		compiler_backend_path = null;
 #endif
 	}
