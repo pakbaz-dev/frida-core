@@ -1,6 +1,6 @@
 [wrap-git]
 url = https://github.com/frida/libnice.git
-revision = e12567b0a16a0c2eb5dfe5e0782baba8496772ff
+revision = 9a3da6e3e5bbcf935fd85b6b8557ff8c7dd9032c
 depth = 1
 
 [provide]
