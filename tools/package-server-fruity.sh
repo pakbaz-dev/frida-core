@@ -19,7 +19,7 @@ if [ ! -f "$executable" ]; then
   exit 4
 fi
 
-agent=$prefix/usr/lib/frida/frida-agent.dylib
+agent=$prefix/usr/lib/frida-1.0/frida-agent.dylib
 if [ ! -f "$agent" ]; then
   echo "$agent: not found" > /dev/stderr
   exit 5
@@ -41,7 +41,7 @@ tmpdir="$(mktemp -d /tmp/package-server.XXXXXX)"
 
 pkroot=$tmpdir$sysroot
 bindir=$pkroot/usr/sbin
-libdir=$pkroot/usr/lib/frida
+libdir=$pkroot/usr/lib/frida-1.0
 daedir=$pkroot/Library/LaunchDaemons
 
 mkdir -p "$bindir/"
