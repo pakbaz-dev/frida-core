@@ -247,18 +247,6 @@ def emit_gir(api: ApiSpec, core_gir: str, base_gir: str, output_dir: Path) -> st
             if owner is not None and owner in object_type_names:
                 merged_namespace.append(record)
 
-    delegate_c_types = set()
-    for object_type in api.object_types:
-        for typedef_line in object_type.c_delegate_typedefs:
-            m = re.search(r"\(\*(\w+)\)", typedef_line)
-            if m is not None:
-                delegate_c_types.add(m.group(1))
-    for source_root in [core_root, base_root]:
-        source_namespace = source_root.find("namespace", GIR_NAMESPACES)
-        for callback in source_namespace.findall("callback", GIR_NAMESPACES):
-            if callback.get(f"{{{C_NAMESPACE}}}type") in delegate_c_types:
-                merged_namespace.append(callback)
-
     ET.indent(merged_root, space="  ")
     result = ET.tostring(merged_root,
                          encoding="unicode",
