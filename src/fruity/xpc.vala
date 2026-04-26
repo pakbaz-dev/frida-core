@@ -1525,12 +1525,12 @@ namespace Frida.Fruity {
 	private uint8[] make_random_v4_uuid () {
 		var hex = Uuid.string_random ().replace ("-", "");
 		var uuid = new uint8[16];
-		for (int i = 0; i < uuid.length; i++)
+		for (int i = 0; i != uuid.length; i++)
 			uuid[i] = (hex_nibble (hex[i * 2]) << 4) | hex_nibble (hex[i * 2 + 1]);
 		return uuid;
 	}
 
-	private static uint8 hex_nibble (char c) {
+	private uint8 hex_nibble (char c) {
 		if (c >= '0' && c <= '9')
 			return (uint8) (c - '0');
 		return (uint8) (c - 'a' + 10);
