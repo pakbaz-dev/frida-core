@@ -50,6 +50,7 @@ def main(argv: List[str]):
     args = argv[1:]
     go = Path(args.pop(0))
     host_os = args.pop(0)
+    host_os_family = args.pop(0)
     host_abi = args.pop(0)
     libc = args.pop(0)
     exe_suffix = args.pop(0)
@@ -65,6 +66,7 @@ def main(argv: List[str]):
         mode, config_path = detect_config(
             go,
             host_os,
+            host_os_family,
             host_abi,
             libc,
             exe_suffix,
@@ -101,6 +103,7 @@ def pop_cmd_array_arg(args: List[str]) -> List[str]:
 def detect_config(
     go: Path,
     host_os: str,
+    host_os_family: str,
     host_abi: str,
     libc: str,
     exe_suffix: str,
@@ -172,7 +175,7 @@ def detect_config(
     env["GOOS"] = goos
     env["GOARCH"] = goarch
 
-    apple_non_macos = goos == "darwin" and host_os != "macos"
+    apple_non_macos = host_os_family == "darwin" and host_os != "macos"
     if apple_non_macos:
         mode = "c-archive"
     elif libc == "musl":

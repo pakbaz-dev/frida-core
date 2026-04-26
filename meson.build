@@ -537,6 +537,7 @@ if compiler_backend_opt.allowed()
         files('tools' / 'cgo' / 'detect.py'),
         go,
         host_os,
+        host_os_family,
         host_abi,
         libc,
         exe_suffix,
