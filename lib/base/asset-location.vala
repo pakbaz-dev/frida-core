@@ -20,14 +20,13 @@ namespace Frida {
 			assert (module_path != null);
 
 			string libdir = Path.get_dirname (module_path);
-#if WINDOWS
-			if (Path.get_basename (libdir).down () == "bin") {
+			string basename = Path.get_basename (libdir).down ();
+			if (basename == "bin" || basename == "sbin") {
 				string parent = Path.get_dirname (libdir);
-				string candidate = Path.build_filename (parent, "lib");
+				string candidate = Path.build_filename (parent, Config.FRIDA_LIBDIR);
 				if (FileUtils.test (candidate, IS_DIR))
 					libdir = candidate;
 			}
-#endif
 
 			return new AssetLocation (libdir);
 		}
@@ -37,7 +36,11 @@ namespace Frida {
 		}
 
 		public string derive_asset_path (string arch, string filename) {
+#if DARWIN
+			return Path.build_filename (libdir, Config.FRIDA_LIBDIR_NAME, filename);
+#else
 			return Path.build_filename (libdir, Config.FRIDA_LIBDIR_NAME, arch, filename);
+#endif
 		}
 
 		public string derive_plugin_path (string filename) {

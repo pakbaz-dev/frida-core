@@ -253,6 +253,7 @@ if assets_mode == 'auto'
   assets_mode = is_shared ? 'installed' : 'embedded'
 endif
 
+cdata.set_quoted('FRIDA_LIBDIR', get_option('libdir'))
 cdata.set_quoted('FRIDA_LIBDIR_NAME', frida_libdir_name)
 
 if assets_mode == 'embedded'
