@@ -400,8 +400,8 @@ namespace Frida.Barebone {
 			close_request.resolve (true);
 		}
 
-		private void handle_message (Json.Node message) throws Error {
-			var r = make_json_reader_from_node (message);
+		private void handle_message (owned Json.Node message) throws Error {
+			var r = make_json_reader_taking_node ((owned) message);
 
 			bool is_response = r.read_member ("id");
 			uint id = 0;

@@ -1686,7 +1686,7 @@ namespace Frida {
 						packument_cache[name] = packument_promise;
 					}
 					var packument_node = yield packument_promise.future.wait_async (cancellable);
-					var packument_reader = make_json_reader_from_node (packument_node);
+					var packument_reader = make_json_reader_taking_node ((owned) packument_node);
 
 					string? version_from_dist_tag = null;
 					if (!packument_reader.read_member ("dist-tags"))
@@ -2279,7 +2279,7 @@ namespace Frida {
 
 		private async Json.Reader fetch (string resource, Cancellable? cancellable) throws Error, IOError {
 			var root = yield fetch_node (resource, cancellable);
-			return make_json_reader_from_node (root);
+			return make_json_reader_taking_node ((owned) root);
 		}
 
 		private async Json.Node fetch_node (string resource, Cancellable? cancellable) throws Error, IOError {
@@ -2304,7 +2304,7 @@ namespace Frida {
 				throw new Error.PROTOCOL ("Unable to parse response from %s: %s", url, e.message);
 			}
 
-			return parser.get_root ();
+			return parser.steal_root ();
 		}
 
 		private T create<T> () {
@@ -2560,7 +2560,7 @@ namespace Frida {
 		} catch (GLib.Error e) {
 			throw new Error.PROTOCOL ("%s", e.message);
 		}
-		return make_json_reader_from_node (p.get_root ());
+		return make_json_reader_taking_node (p.steal_root ());
 	}
 
 	private class SemverVersion {

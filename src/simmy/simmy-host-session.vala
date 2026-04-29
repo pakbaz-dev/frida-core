@@ -609,7 +609,7 @@ namespace Frida {
 			Json.Node response = yield call ("fetchApplicationIcons", args, null, cancellable);
 
 			var icons = new Gee.HashMap<string, Bytes> ();
-			var reader = make_json_reader_from_node (response);
+			var reader = make_json_reader_taking_node ((owned) response);
 			int n = reader.count_elements ();
 			for (int i = 0; i != n; i++) {
 				reader.read_element (i);
