@@ -120,7 +120,7 @@ if no_overridden_compat_bits
       helper_compat = outpath
       helper_depends += arch_support
     elif varname.startswith('agent_')
-      if output_name.contains('-' + host_abi + '.') or output_name.endswith('-' + host_abi)
+      if output_name.contains('-' + host_abi + '.')
         agent_host_compat = outpath
       else
         agent_compat = outpath
