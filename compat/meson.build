@@ -8,6 +8,7 @@ helper_depends = []
 agent_modern = get_option('agent_modern')
 agent_legacy = get_option('agent_legacy')
 agent_compat = ''
+agent_host_compat = ''
 agent_emulated_modern = get_option('agent_emulated_modern')
 agent_emulated_legacy = get_option('agent_emulated_legacy')
 agent_depends = []
@@ -119,7 +120,11 @@ if no_overridden_compat_bits
       helper_compat = outpath
       helper_depends += arch_support
     elif varname.startswith('agent_')
-      agent_compat = outpath
+      if output_name.contains('-' + host_abi + '.') or output_name.endswith('-' + host_abi)
+        agent_host_compat = outpath
+      else
+        agent_compat = outpath
+      endif
       agent_depends += arch_support
     elif varname.startswith('gadget_')
       gadget_compat = outpath
