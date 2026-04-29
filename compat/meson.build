@@ -52,6 +52,7 @@ if no_overridden_compat_bits
     assets_mode,
     ','.join(components),
     have_shared_glib ? 'upstream' : 'frida',
+    use_apple_tls ? 'enabled' : 'disabled',
     '--',
     '>>>', cc.cmd_array(), '<<<',
     '>>>', cpp.cmd_array(), '<<<',
