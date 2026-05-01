@@ -10,6 +10,7 @@
 
 #ifdef HAVE_MACOS
 # include <libproc.h>
+# include <objc/runtime.h>
 # import <AppKit/AppKit.h>
 # if __MAC_OS_X_VERSION_MIN_REQUIRED < __MAC_10_12
 #  define NSBitmapImageFileTypePNG NSPNGFileType
@@ -34,25 +35,45 @@ typedef struct _FridaEnumerateProcessesOperation FridaEnumerateProcessesOperatio
 struct _FridaEnumerateApplicationsOperation
 {
   FridaScope scope;
+  GArray * result;
+#if defined (HAVE_MACOS)
+  NSDictionary<NSString *, NSRunningApplication *> * running_app_by_identifier;
+#elif defined (HAVE_IOS) || defined (HAVE_TVOS) || defined (HAVE_XROS)
   GHashTable * process_by_identifier;
-#if defined (HAVE_IOS) || defined (HAVE_TVOS) || defined (HAVE_XROS)
   FridaSpringboardApi * api;
 #endif
-
-  GArray * result;
 };
 
 struct _FridaEnumerateProcessesOperation
 {
   FridaScope scope;
+  GArray * result;
 #if defined (HAVE_IOS) || defined (HAVE_TVOS) || defined (HAVE_XROS)
   FridaSpringboardApi * api;
 #endif
-
-  GArray * result;
 };
 
-#if defined (HAVE_IOS) || defined (HAVE_TVOS) || defined (HAVE_XROS)
+#if defined (HAVE_MACOS)
+@interface LSApplicationProxy : NSObject
++ (LSApplicationProxy *)applicationProxyForIdentifier:(NSString *)identifier;
+- (NSString *)applicationIdentifier;
+- (NSString *)localizedName;
+- (NSString *)shortVersionString;
+- (NSString *)bundleVersion;
+- (NSURL *)bundleURL;
+@end
+
+@interface LSApplicationWorkspace : NSObject
++ (LSApplicationWorkspace *)defaultWorkspace;
+- (NSArray<LSApplicationProxy *> *)allApplications;
+@end
+
+static void frida_collect_macos_application_info_from_id_cstring (const gchar * identifier, FridaEnumerateApplicationsOperation * op);
+static void frida_collect_macos_application_info_from_id_nsstring (NSString * identifier, FridaEnumerateApplicationsOperation * op);
+static void frida_add_macos_app_proxy_metadata (GHashTable * parameters, LSApplicationProxy * proxy);
+static void frida_add_macos_running_app_state (GHashTable * parameters, NSRunningApplication * app);
+static void frida_add_process_metadata_for_pid (GHashTable * parameters, guint pid);
+#elif defined (HAVE_IOS) || defined (HAVE_TVOS) || defined (HAVE_XROS)
 static void frida_collect_application_info_from_id_cstring (const gchar * identifier, FridaEnumerateApplicationsOperation * op);
 static void frida_collect_application_info_from_id_nsstring (NSString * identifier, FridaEnumerateApplicationsOperation * op);
 #endif
@@ -86,18 +107,180 @@ static GVariant * frida_uid_to_name (uid_t uid);
 void
 frida_system_get_frontmost_application (FridaFrontmostQueryOptions * options, FridaHostApplicationInfo * result, GError ** error)
 {
-  g_set_error (error,
-      FRIDA_ERROR,
-      FRIDA_ERROR_NOT_SUPPORTED,
-      "Not implemented");
+  NSAutoreleasePool * pool;
+  NSRunningApplication * frontmost;
+  NSString * identifier, * name;
+  FridaScope scope;
+
+  pool = [[NSAutoreleasePool alloc] init];
+
+  frontmost = [[NSWorkspace sharedWorkspace] frontmostApplication];
+  if (frontmost == nil)
+    goto no_frontmost_app;
+
+  identifier = frontmost.bundleIdentifier;
+  name = frontmost.localizedName;
+  if (identifier == nil || name == nil)
+    goto no_frontmost_app;
+
+  result->identifier = g_strdup (identifier.UTF8String);
+  result->name = g_strdup (name.UTF8String);
+  result->pid = frontmost.processIdentifier;
+  result->parameters = frida_make_parameters_dict ();
+
+  scope = frida_frontmost_query_options_get_scope (options);
+
+  if (scope != FRIDA_SCOPE_MINIMAL)
+  {
+    Class ls_application_proxy_class = objc_getClass ("LSApplicationProxy");
+    LSApplicationProxy * proxy = [ls_application_proxy_class applicationProxyForIdentifier:identifier];
+    if (proxy != nil)
+      frida_add_macos_app_proxy_metadata (result->parameters, proxy);
+
+    frida_add_macos_running_app_state (result->parameters, frontmost);
+    frida_add_process_metadata_for_pid (result->parameters, result->pid);
+  }
+
+  if (scope == FRIDA_SCOPE_FULL && frontmost.icon != nil)
+    frida_add_app_icons (result->parameters, frontmost.icon);
+
+  goto beach;
+
+no_frontmost_app:
+  {
+    frida_host_application_info_init_empty (result);
+    goto beach;
+  }
+beach:
+  {
+    [pool release];
+  }
 }
 
 FridaHostApplicationInfo *
 frida_system_enumerate_applications (FridaApplicationQueryOptions * options, int * result_length)
 {
-  *result_length = 0;
+  FridaEnumerateApplicationsOperation op;
+  NSAutoreleasePool * pool;
+  NSMutableDictionary<NSString *, NSRunningApplication *> * running_apps;
+  Class ls_application_workspace_class;
 
-  return NULL;
+  op.scope = frida_application_query_options_get_scope (options);
+  op.result = g_array_new (FALSE, FALSE, sizeof (FridaHostApplicationInfo));
+
+  pool = [[NSAutoreleasePool alloc] init];
+
+  running_apps = [NSMutableDictionary dictionary];
+  for (NSRunningApplication * app in [[NSWorkspace sharedWorkspace] runningApplications])
+  {
+    NSString * identifier = app.bundleIdentifier;
+    if (identifier != nil)
+      running_apps[identifier] = app;
+  }
+  op.running_app_by_identifier = running_apps;
+
+  if (frida_application_query_options_has_selected_identifiers (options))
+  {
+    frida_application_query_options_enumerate_selected_identifiers (options,
+        (GFunc) frida_collect_macos_application_info_from_id_cstring, &op);
+  }
+  else
+  {
+    ls_application_workspace_class = objc_getClass ("LSApplicationWorkspace");
+    for (LSApplicationProxy * proxy in [[ls_application_workspace_class defaultWorkspace] allApplications])
+      frida_collect_macos_application_info_from_id_nsstring (proxy.applicationIdentifier, &op);
+  }
+
+  [pool release];
+
+  *result_length = op.result->len;
+
+  return (FridaHostApplicationInfo *) g_array_free (op.result, FALSE);
+}
+
+static void
+frida_collect_macos_application_info_from_id_cstring (const gchar * identifier, FridaEnumerateApplicationsOperation * op)
+{
+  frida_collect_macos_application_info_from_id_nsstring ([NSString stringWithUTF8String:identifier], op);
+}
+
+static void
+frida_collect_macos_application_info_from_id_nsstring (NSString * identifier, FridaEnumerateApplicationsOperation * op)
+{
+  FridaHostApplicationInfo info = { 0, };
+  FridaScope scope = op->scope;
+  Class ls_application_proxy_class;
+  LSApplicationProxy * proxy;
+  NSRunningApplication * running;
+  NSString * name;
+
+  ls_application_proxy_class = objc_getClass ("LSApplicationProxy");
+  proxy = [ls_application_proxy_class applicationProxyForIdentifier:identifier];
+
+  running = op->running_app_by_identifier[identifier];
+
+  name = proxy.localizedName;
+  if (name == nil)
+    name = running.localizedName;
+
+  info.identifier = g_strdup (identifier.UTF8String);
+  info.name = g_strdup ((name != nil) ? name.UTF8String : "");
+  info.pid = running.processIdentifier;
+  info.parameters = frida_make_parameters_dict ();
+
+  if (scope != FRIDA_SCOPE_MINIMAL)
+  {
+    if (proxy != nil)
+      frida_add_macos_app_proxy_metadata (info.parameters, proxy);
+
+    if (running != nil)
+    {
+      frida_add_macos_running_app_state (info.parameters, running);
+      frida_add_process_metadata_for_pid (info.parameters, info.pid);
+    }
+  }
+
+  if (scope == FRIDA_SCOPE_FULL && running.icon != nil)
+    frida_add_app_icons (info.parameters, running.icon);
+
+  g_array_append_val (op->result, info);
+}
+
+static void
+frida_add_macos_app_proxy_metadata (GHashTable * parameters, LSApplicationProxy * proxy)
+{
+  NSString * version = proxy.shortVersionString;
+  NSString * build = proxy.bundleVersion;
+  NSURL * bundle_url = proxy.bundleURL;
+
+  if (version != nil)
+    g_hash_table_insert (parameters, g_strdup ("version"), g_variant_ref_sink (g_variant_new_string (version.UTF8String)));
+
+  if (build != nil)
+    g_hash_table_insert (parameters, g_strdup ("build"), g_variant_ref_sink (g_variant_new_string (build.UTF8String)));
+
+  if (bundle_url != nil)
+    g_hash_table_insert (parameters, g_strdup ("path"), g_variant_ref_sink (g_variant_new_string (bundle_url.path.UTF8String)));
+}
+
+static void
+frida_add_macos_running_app_state (GHashTable * parameters, NSRunningApplication * app)
+{
+  if (app.active)
+    g_hash_table_insert (parameters, g_strdup ("frontmost"), g_variant_ref_sink (g_variant_new_boolean (TRUE)));
+}
+
+static void
+frida_add_process_metadata_for_pid (GHashTable * parameters, guint pid)
+{
+  struct kinfo_proc process;
+  size_t size = sizeof (process);
+  int mib[] = { CTL_KERN, KERN_PROC, KERN_PROC_PID, pid };
+
+  if (sysctl (mib, G_N_ELEMENTS (mib), &process, &size, NULL, 0) != 0 || size == 0)
+    return;
+
+  frida_add_process_metadata (parameters, &process);
 }
 
 #elif defined (HAVE_IOS) || defined (HAVE_TVOS) || defined (HAVE_XROS)
