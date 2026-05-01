@@ -809,7 +809,7 @@ _frida_darwin_helper_backend_spawn (FridaDarwinHelperBackend * self, const gchar
   FridaAslr aslr = FRIDA_ASLR_AUTO;
   GVariant * aslr_value;
   gchar * old_cwd = NULL;
-  int result, spawn_errno;
+  int result;
 
   *pipes = NULL;
 
@@ -850,7 +850,6 @@ _frida_darwin_helper_backend_spawn (FridaDarwinHelperBackend * self, const gchar
   }
 
   result = posix_spawn (&pid, path, &file_actions, &attributes, argv, envp);
-  spawn_errno = errno;
 
   if (old_cwd != NULL)
     chdir (old_cwd);
@@ -885,7 +884,7 @@ chdir_failed:
   }
 spawn_failed:
   {
-    if (spawn_errno == EAGAIN)
+    if (result == EAGAIN)
     {
       g_set_error (error,
           FRIDA_ERROR,
@@ -899,7 +898,7 @@ spawn_failed:
           FRIDA_ERROR,
           FRIDA_ERROR_NOT_SUPPORTED,
           "Unable to spawn executable at '%s': %s",
-          path, g_strerror (spawn_errno));
+          path, g_strerror (result));
     }
 
     goto any_failure;
