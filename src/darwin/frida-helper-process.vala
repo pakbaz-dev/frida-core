@@ -497,11 +497,14 @@ namespace Frida {
 			private set;
 		}
 
-#if HAVE_EMBEDDED_ASSETS && MACOS && ARM64
+		private TemporaryDirectory tempdir;
+
+#if MACOS && ARM64
 		private bool thinned = false;
 #endif
 
 		public ResourceStore (TemporaryDirectory tempdir) throws Error {
+			this.tempdir = tempdir;
 #if HAVE_EMBEDDED_ASSETS
 			FileUtils.chmod (tempdir.path, 0755);
 
@@ -517,22 +520,22 @@ namespace Frida {
 		}
 
 		~ResourceStore () {
-#if HAVE_EMBEDDED_ASSETS
-			((TemporaryHelperFile) helper).file.destroy ();
-#endif
+			if (helper is TemporaryHelperFile)
+				((TemporaryHelperFile) helper).file.destroy ();
 		}
 
 		public bool maybe_thin_helper_to_basic_abi () {
-#if HAVE_EMBEDDED_ASSETS && MACOS && ARM64
+#if MACOS && ARM64
 			if (thinned)
 				return false;
 
-			var blob = Frida.Data.Helper.get_frida_helper_blob ();
-
-			var input = new DataInputStream (new MemoryInputStream.from_data (blob.data, null));
-			input.byte_order = BIG_ENDIAN;
-
 			try {
+				uint8[] universal_data;
+				FileUtils.get_data (helper.path, out universal_data);
+
+				var input = new DataInputStream (new MemoryInputStream.from_data (universal_data, null));
+				input.byte_order = BIG_ENDIAN;
+
 				const uint32 fat_magic = 0xcafebabeU;
 				var magic = input.read_uint32 ();
 				if (magic != fat_magic)
@@ -564,9 +567,15 @@ namespace Frida {
 				if (arm64e_offset == 0 || arm64_offset == 0)
 					return false;
 
-				FileUtils.set_data (helper.path, blob.data[arm64_offset:arm64_offset + arm64_size]);
-				FileUtils.chmod (helper.path, 0700);
+				var thin_file = new TemporaryFile.from_stream ("frida-helper-arm64",
+					new MemoryInputStream.from_data (universal_data[arm64_offset:arm64_offset + arm64_size], null),
+					tempdir);
+				FileUtils.chmod (thin_file.path, 0700);
 
+				if (helper is TemporaryHelperFile)
+					((TemporaryHelperFile) helper).file.destroy ();
+
+				helper = new TemporaryHelperFile (thin_file);
 				thinned = true;
 
 				return true;
