@@ -1,49 +1,3 @@
-agent_sources = [
-  'agent.vala',
-  'agent-glue.c',
-]
-
-force_cpp_linking = have_v8
-if force_cpp_linking
-  agent_sources += ['dummy.cpp']
-endif
-
-extra_vala_args = []
-extra_link_args = []
-extra_link_depends = []
-
-if host_os_family != 'windows'
-  extra_vala_args += '--pkg=posix'
-endif
-if host_os_family == 'darwin'
-  extra_vala_args += '--pkg=frida-gum-darwin-1.0'
-endif
-
-if host_os_family == 'windows'
-  if host_toolchain != 'microsoft'
-    symfile = (host_arch == 'x86') ? 'frida-agent-x86.symbols' : 'frida-agent.symbols'
-    extra_link_args += '-Wl,--retain-symbols-file,' + meson.current_source_dir() / symfile
-    extra_link_depends += symfile
-  endif
-elif host_os_family == 'darwin'
-  extra_link_args += '-Wl,-exported_symbol,_frida_agent_main'
-else
-  if libc == 'glibc'
-    symscript = 'frida-agent-glibc.version'
-  elif host_os == 'android'
-    symscript = 'frida-agent-android.version'
-  else
-    symscript = 'frida-agent.version'
-  endif
-  extra_link_args += '-Wl,--version-script,' + meson.current_source_dir() / symscript
-  extra_link_depends += symscript
-endif
-
-if host_os_family in ['linux', 'qnx']
-  # For our libc shim to be effective.
-  extra_link_args += '-Wl,-Bsymbolic'
-endif
-
 need_universal_agent = host_os_family == 'darwin' \
     and assets_mode == 'installed' \
     and agent_compat != ''
@@ -54,6 +8,52 @@ need_universal_agent = host_os_family == 'darwin' \
 build_agent = agent_host_compat == ''
 
 if build_agent
+  agent_sources = [
+    'agent.vala',
+    'agent-glue.c',
+  ]
+
+  force_cpp_linking = have_v8
+  if force_cpp_linking
+    agent_sources += ['dummy.cpp']
+  endif
+
+  extra_vala_args = []
+  extra_link_args = []
+  extra_link_depends = []
+
+  if host_os_family != 'windows'
+    extra_vala_args += '--pkg=posix'
+  endif
+  if host_os_family == 'darwin'
+    extra_vala_args += '--pkg=frida-gum-darwin-1.0'
+  endif
+
+  if host_os_family == 'windows'
+    if host_toolchain != 'microsoft'
+      symfile = (host_arch == 'x86') ? 'frida-agent-x86.symbols' : 'frida-agent.symbols'
+      extra_link_args += '-Wl,--retain-symbols-file,' + meson.current_source_dir() / symfile
+      extra_link_depends += symfile
+    endif
+  elif host_os_family == 'darwin'
+    extra_link_args += '-Wl,-exported_symbol,_frida_agent_main'
+  else
+    if libc == 'glibc'
+      symscript = 'frida-agent-glibc.version'
+    elif host_os == 'android'
+      symscript = 'frida-agent-android.version'
+    else
+      symscript = 'frida-agent.version'
+    endif
+    extra_link_args += '-Wl,--version-script,' + meson.current_source_dir() / symscript
+    extra_link_depends += symscript
+  endif
+
+  if host_os_family in ['linux', 'qnx']
+    # For our libc shim to be effective.
+    extra_link_args += '-Wl,-Bsymbolic'
+  endif
+
   raw_agent = shared_library('frida-agent-raw', agent_sources,
     name_prefix: 'lib',
     c_args: frida_component_cflags,
