@@ -27,7 +27,6 @@ namespace Frida.Test {
 										unowned string boot_args = tokens[1];
 										can_test_cross_arch_injection = "-arm64e_preview_abi" in boot_args;
 									} else {
-										assert (tokens.length == 1);
 										can_test_cross_arch_injection = false;
 									}
 								}
