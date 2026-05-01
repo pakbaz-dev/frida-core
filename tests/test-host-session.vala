@@ -164,6 +164,11 @@ namespace Frida.HostSessionTest {
 			h.run ();
 		});
 
+		GLib.Test.add_func ("/HostSession/Darwin/spawn-application", () => {
+			var h = new Harness ((h) => Darwin.spawn_application.begin (h as Harness));
+			h.run ();
+		});
+
 		if (can_test_cross_arch_injection) {
 			GLib.Test.add_func ("/HostSession/Darwin/spawn-other", () => {
 				var h = new Harness ((h) => Darwin.spawn_other.begin (h as Harness));
@@ -1797,6 +1802,32 @@ namespace Frida.HostSessionTest {
 
 		private static async void spawn_native (Harness h) {
 			yield run_spawn_scenario (h, target_name_of_native ("sleeper"));
+		}
+
+		private static async void spawn_application (Harness h) {
+			if (Frida.Test.os () != Frida.Test.OS.MACOS) {
+				stdout.printf ("<skipping, only on macOS> ");
+				h.done ();
+				return;
+			}
+
+			try {
+				var device_manager = new DeviceManager ();
+
+				var device = yield device_manager.get_device_by_type (DeviceType.LOCAL);
+
+				var pid = yield device.spawn ("com.apple.TextEdit");
+				assert_true (pid != 0);
+
+				yield device.kill (pid);
+
+				yield device_manager.close ();
+			} catch (GLib.Error e) {
+				printerr ("\nFAIL: %s\n\n", e.message);
+				assert_not_reached ();
+			}
+
+			h.done ();
 		}
 
 		private static async void spawn_other (Harness h) {
