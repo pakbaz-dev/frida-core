@@ -830,9 +830,12 @@ _frida_darwin_helper_backend_spawn (FridaDarwinHelperBackend * self, const gchar
   if (stdio_error != NULL)
     goto propagate_stdio_error;
 
-  posix_spawn_file_actions_adddup2 (&file_actions, (in_fd != NULL) ? in_fd->handle : 0, 0);
-  posix_spawn_file_actions_adddup2 (&file_actions, (out_fd != NULL) ? out_fd->handle : 1, 1);
-  posix_spawn_file_actions_adddup2 (&file_actions, (err_fd != NULL) ? err_fd->handle : 2, 2);
+  if (in_fd != NULL)
+    posix_spawn_file_actions_adddup2 (&file_actions, in_fd->handle, 0);
+  if (out_fd != NULL)
+    posix_spawn_file_actions_adddup2 (&file_actions, out_fd->handle, 1);
+  if (err_fd != NULL)
+    posix_spawn_file_actions_adddup2 (&file_actions, err_fd->handle, 2);
 
   aslr_value = g_hash_table_lookup (options->aux, "aslr");
   if (aslr_value != NULL && !frida_parse_aslr_option (aslr_value, &aslr, error))
