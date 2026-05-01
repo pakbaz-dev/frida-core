@@ -5,6 +5,7 @@
 #include <sys/sysctl.h>
 
 #ifdef HAVE_MACOS
+# import <AppKit/AppKit.h>
 
 typedef struct _FridaMacModel FridaMacModel;
 
@@ -59,6 +60,54 @@ _frida_darwin_host_session_provider_try_extract_icon (void)
 
   return icon;
 #else
+  return NULL;
+#endif
+}
+
+gchar *
+_frida_darwin_host_session_path_for_application_identifier (const gchar * identifier, GError ** error)
+{
+#ifdef HAVE_MACOS
+  gchar * result = NULL;
+  NSAutoreleasePool * pool;
+  NSString * bundle_id;
+  NSURL * bundle_url, * executable_url;
+
+  pool = [[NSAutoreleasePool alloc] init];
+
+  bundle_id = [NSString stringWithUTF8String:identifier];
+
+  bundle_url = [[NSWorkspace sharedWorkspace] URLForApplicationWithBundleIdentifier:bundle_id];
+  if (bundle_url == nil)
+    goto not_found;
+
+  executable_url = [NSBundle bundleWithURL:bundle_url].executableURL;
+  if (executable_url == nil)
+    goto not_found;
+
+  result = g_strdup (executable_url.path.UTF8String);
+  goto beach;
+
+not_found:
+  {
+    g_set_error (error,
+        FRIDA_ERROR,
+        FRIDA_ERROR_INVALID_ARGUMENT,
+        "Unable to find application with identifier '%s'",
+        identifier);
+    goto beach;
+  }
+beach:
+  {
+    [pool release];
+
+    return result;
+  }
+#else
+  g_set_error (error,
+      FRIDA_ERROR,
+      FRIDA_ERROR_NOT_SUPPORTED,
+      "Not supported on this platform");
   return NULL;
 #endif
 }

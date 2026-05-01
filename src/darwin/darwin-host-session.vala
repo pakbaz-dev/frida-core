@@ -225,12 +225,17 @@ namespace Frida {
 
 		public override async uint spawn (string program, HostSpawnOptions options, Cancellable? cancellable)
 				throws Error, IOError {
-#if IOS || TVOS
-			if (!program.has_prefix ("/"))
-				return yield fruit_controller.spawn (program, options, cancellable);
+			string path = program;
+
+#if MACOS
+			if (!path.has_prefix ("/"))
+				path = _path_for_application_identifier (path);
+#elif IOS || TVOS
+			if (!path.has_prefix ("/"))
+				return yield fruit_controller.spawn (path, options, cancellable);
 #endif
 
-			return yield helper.spawn (program, options, cancellable);
+			return yield helper.spawn (path, options, cancellable);
 		}
 
 		protected override async void await_exec_transition (uint pid, Cancellable? cancellable) throws Error, IOError {
@@ -333,6 +338,8 @@ namespace Frida {
 
 			base.on_uninjected (id);
 		}
+
+		public extern static string _path_for_application_identifier (string identifier) throws Error;
 	}
 
 #if IOS || TVOS
