@@ -644,8 +644,7 @@ frida_temporary_directory_get_system_tmp (void)
   else
   {
 #ifdef HAVE_MACOS
-    /* Mac App Store apps are sandboxed but able to read ~/.Trash/ */
-    return g_build_filename (g_get_home_dir (), ".Trash", ".frida", NULL);
+    return g_build_filename (g_get_user_cache_dir (), "frida", NULL);
 #else
     return g_strdup (g_get_tmp_dir ());
 #endif
