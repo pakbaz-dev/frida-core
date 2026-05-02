@@ -306,60 +306,35 @@ namespace Frida {
 		}
 
 		private async DarwinRemoteHelper launch_helper (Cancellable? cancellable) throws Error, IOError {
-			string? pending_socket_path = null;
 			Pid pending_pid = 0;
 			IOStream? pending_stream = null;
 			DBusConnection pending_connection = null;
 			DarwinRemoteHelper pending_proxy = null;
 
-			SocketService? service = null;
-			TimeoutSource? timeout_source = null;
-			bool timed_out = false;
 			bool child_exited = false;
 			int child_status = 0;
+			ChildExitMonitor? exit_monitor = null;
+			ulong exit_handler = 0;
+
+			DBusConnection? established = null;
+			GLib.Error? handshake_error = null;
+			bool handshake_done = false;
+			bool waiting = false;
 
 			try {
-				string tempdir;
 				HelperFile helper_file = get_resource_store ().helper;
 				string helper_path = helper_file.path;
-				if (helper_file is TemporaryHelperFile)
-					tempdir = Path.get_dirname (helper_path);
-				else
-					tempdir = Environment.get_tmp_dir ();
 
-				pending_socket_path = Path.build_filename (tempdir, Uuid.string_random ());
-				string socket_address = "unix:path=" + pending_socket_path;
+				int sv[2];
+				if (Posix.socketpair (Posix.AF_UNIX, Posix.SOCK_STREAM, 0, sv) != 0)
+					throw new Error.NOT_SUPPORTED ("Unable to allocate socketpair: %s", strerror (errno));
+				var parent_fd = new FileDescriptor (sv[0]);
+				var peer_fd = new FileDescriptor (sv[1]);
 
-				service = new SocketService ();
-				SocketAddress effective_address;
-				service.add_address (new UnixSocketAddress.with_type (pending_socket_path, -1, PATH),
-					SocketType.STREAM, SocketProtocol.DEFAULT, null, out effective_address);
-				service.start ();
+				Socket parent_socket = new Socket.from_fd (parent_fd.steal ());
+				pending_stream = SocketConnection.factory_create_connection (parent_socket);
 
-				var main_context = MainContext.get_thread_default ();
-
-				var idle_source = new IdleSource ();
-				idle_source.set_callback (() => {
-					launch_helper.callback ();
-					return false;
-				});
-				idle_source.attach (main_context);
-				yield;
-
-				var incoming_handler = service.incoming.connect ((c) => {
-					pending_stream = c;
-					launch_helper.callback ();
-					return true;
-				});
-
-				timeout_source = new TimeoutSource.seconds (10);
-				timeout_source.set_callback (() => {
-					timed_out = true;
-					launch_helper.callback ();
-					return Source.REMOVE;
-				});
-				timeout_source.attach (main_context);
-
+				string socket_address = "socket-fd:%d".printf (peer_fd.handle);
 				string[] argv = { helper_path, socket_address };
 
 				GLib.SpawnFlags flags =
@@ -369,36 +344,51 @@ namespace Frida {
 
 				GLib.Process.spawn_async (null, argv, null, flags, null, out pending_pid);
 
-				var exit_monitor = new ChildExitMonitor (pending_pid, main_context);
-				var exit_handler = exit_monitor.exited.connect ((status) => {
-					child_exited = true;
-					child_status = status;
-					launch_helper.callback ();
-				});
+				peer_fd = null;
 
-				while (pending_stream == null && !timed_out && !child_exited)
-					yield;
+				GLib.SourceFunc resume = launch_helper.callback;
 
-				exit_monitor.disconnect (exit_handler);
-				exit_monitor.stop ();
-
-				timeout_source.destroy ();
-				timeout_source = null;
-
-				service.disconnect (incoming_handler);
-				service.stop ();
-				service = null;
-
-				if (pending_stream == null) {
-					if (child_exited)
-						throw new Error.PROCESS_NOT_FOUND ("Helper exited during launch (status=%d)", child_status);
-					if (timed_out)
-						throw new Error.TIMED_OUT ("Unexpectedly timed out while spawning helper");
+				var handshake_cancellable = new Cancellable ();
+				ulong cancel_chain = 0;
+				if (cancellable != null) {
+					cancel_chain = cancellable.cancelled.connect (() => {
+						handshake_cancellable.cancel ();
+					});
 				}
 
-				pending_connection = yield new DBusConnection (pending_stream, ServerGuid.HOST_SESSION_SERVICE,
-					AUTHENTICATION_SERVER | AUTHENTICATION_ALLOW_ANONYMOUS, null, cancellable);
+				var main_context = MainContext.get_thread_default ();
+				exit_monitor = new ChildExitMonitor (pending_pid, main_context);
+				exit_handler = exit_monitor.exited.connect ((status) => {
+					child_exited = true;
+					child_status = status;
+					handshake_cancellable.cancel ();
+				});
 
+				establish_dbus_connection.begin (pending_stream, handshake_cancellable, (obj, res) => {
+					try {
+						established = establish_dbus_connection.end (res);
+					} catch (GLib.Error e) {
+						handshake_error = e;
+					}
+					handshake_done = true;
+					if (waiting)
+						resume ();
+				});
+
+				waiting = true;
+				while (!handshake_done)
+					yield;
+				waiting = false;
+
+				if (cancel_chain != 0)
+					cancellable.disconnect (cancel_chain);
+
+				if (child_exited)
+					throw new Error.PROCESS_NOT_FOUND ("Helper exited during launch (status=%d)", child_status);
+				if (handshake_error != null)
+					throw handshake_error;
+
+				pending_connection = established;
 				pending_proxy = yield pending_connection.get_proxy (null, ObjectPath.HELPER, DO_NOT_LOAD_PROPERTIES,
 					cancellable);
 
@@ -410,18 +400,14 @@ namespace Frida {
 					reap_later.begin (pending_pid);
 				}
 
-				if (timeout_source != null)
-					timeout_source.destroy ();
-
-				if (service != null)
-					service.stop ();
-
 				if (e is Error)
 					throw (Error) e;
 				throw new Error.PERMISSION_DENIED ("%s", e.message);
 			} finally {
-				if (pending_socket_path != null)
-					Posix.unlink (pending_socket_path);
+				if (exit_monitor != null) {
+					exit_monitor.disconnect (exit_handler);
+					exit_monitor.stop ();
+				}
 			}
 
 			process_pid = pending_pid;
@@ -439,6 +425,11 @@ namespace Frida {
 			proxy.process_killed.connect (on_process_killed);
 
 			return proxy;
+		}
+
+		private async DBusConnection establish_dbus_connection (IOStream stream, Cancellable? cancellable) throws GLib.Error {
+			return yield new DBusConnection (stream, ServerGuid.HOST_SESSION_SERVICE,
+				AUTHENTICATION_SERVER | AUTHENTICATION_ALLOW_ANONYMOUS, null, cancellable);
 		}
 
 		private void on_connection_closed (bool remote_peer_vanished, GLib.Error? error) {

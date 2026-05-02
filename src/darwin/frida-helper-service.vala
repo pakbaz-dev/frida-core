@@ -111,7 +111,11 @@ namespace Frida {
 
 		private async void start () {
 			try {
-				connection = yield new DBusConnection.for_address (parent_address,
+				int fd = int.parse (parent_address.substring ("socket-fd:".length));
+				var sock = new Socket.from_fd (fd);
+				IOStream stream = SocketConnection.factory_create_connection (sock);
+
+				connection = yield new DBusConnection (stream, null,
 					AUTHENTICATION_CLIENT | DELAY_MESSAGE_PROCESSING);
 				connection.on_closed.connect (on_connection_closed);
 
