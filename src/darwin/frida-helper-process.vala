@@ -383,6 +383,9 @@ namespace Frida {
 				if (cancel_chain != 0)
 					cancellable.disconnect (cancel_chain);
 
+				if (handshake_error != null && !child_exited)
+					exit_monitor.poll ();
+
 				if (child_exited)
 					throw new Error.PROCESS_NOT_FOUND ("Helper exited during launch (status=%d)", child_status);
 				if (handshake_error != null)
@@ -602,6 +605,19 @@ namespace Frida {
 				source.destroy ();
 				source = null;
 			}
+		}
+
+		public bool poll () {
+			if (source == null)
+				return false;
+
+			int status;
+			if (!try_reap (pid, out status))
+				return false;
+
+			stop ();
+			exited (status);
+			return true;
 		}
 
 		private void arm () {
