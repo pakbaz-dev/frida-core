@@ -104,9 +104,8 @@ namespace Frida.Server {
 			return true;
 		});
 		int prefix_pos = program_path.last_index_of (Config.FRIDA_PREFIX + "/");
-		if (prefix_pos != -1 && prefix_pos != 0) {
-			options.sysroot = program_path[:prefix_pos];
-		}
+		if (prefix_pos != -1 && prefix_pos != 0)
+			TemporaryDirectory.use_sysroot (program_path[:prefix_pos]);
 #endif
 
 		PolicySoftenerFlavor softener_flavor = SYSTEM;
@@ -199,7 +198,6 @@ namespace Frida.Server {
 	private static int run_application (string? device_id, EndpointParameters endpoint_params, ControlServiceOptions options,
 			ReadyHandler on_ready) {
 		TemporaryDirectory.always_use ((directory != null) ? directory : DEFAULT_DIRECTORY);
-		TemporaryDirectory.use_sysroot (options.sysroot);
 
 		application = new Application (device_id, endpoint_params, options);
 

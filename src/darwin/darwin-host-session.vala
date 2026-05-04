@@ -29,11 +29,6 @@ namespace Frida {
 			construct;
 		}
 
-		public string? sysroot {
-			get;
-			construct;
-		}
-
 		public bool report_crashes {
 			get;
 			construct;
@@ -44,17 +39,7 @@ namespace Frida {
 #if HAVE_EMBEDDED_ASSETS
 				return null;
 #else
-				unowned string path = Frida.agent_path;
-# if IOS || TVOS
-				unowned string? cryptex_path = Environment.get_variable ("CRYPTEX_MOUNT_PATH");
-				if (cryptex_path != null)
-					return cryptex_path + path;
-# endif
-				unowned string? root_path = sysroot;
-				if (root_path != null)
-					return root_path + path;
-
-				return path;
+				return Frida.agent_path;
 #endif
 			}
 		}
@@ -70,12 +55,10 @@ namespace Frida {
 		private ApplicationEnumerator application_enumerator = new ApplicationEnumerator ();
 		private ProcessEnumerator process_enumerator = new ProcessEnumerator ();
 
-		public DarwinHostSession (owned DarwinHelper helper, owned TemporaryDirectory tempdir, owned string? sysroot = null,
-				bool report_crashes = true) {
+		public DarwinHostSession (owned DarwinHelper helper, owned TemporaryDirectory tempdir, bool report_crashes = true) {
 			Object (
 				helper: helper,
 				tempdir: tempdir,
-				sysroot: sysroot,
 				report_crashes: report_crashes
 			);
 		}

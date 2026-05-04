@@ -49,8 +49,7 @@ namespace Frida {
 			session = new WindowsHostSession (new WindowsHelperProcess (tempdir), tempdir);
 #endif
 #if DARWIN
-			session = new DarwinHostSession (new DarwinHelperBackend (), new TemporaryDirectory (),
-				opts.sysroot, opts.report_crashes);
+			session = new DarwinHostSession (new DarwinHelperBackend (), new TemporaryDirectory (), opts.report_crashes);
 #endif
 #if LINUX
 			var tempdir = new TemporaryDirectory ();
@@ -1126,11 +1125,6 @@ namespace Frida {
 	}
 
 	public sealed class ControlServiceOptions : Object {
-		public string? sysroot {
-			get;
-			set;
-		}
-
 		public bool enable_preload {
 			get;
 			set;
