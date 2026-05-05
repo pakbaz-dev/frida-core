@@ -4,6 +4,7 @@ package main
 
 /*
 #include <stdint.h>
+#include <stdlib.h>
 
 typedef enum {
   FRIDA_OUTPUT_UNESCAPED,
@@ -126,6 +127,8 @@ func _frida_compiler_backend_build(cProjectRoot, cEntrypoint *C.char, outputForm
 			cErrorMessage = C.CString(err.Error())
 		}
 		C.invoke_build_complete_func(onComplete.Func, cBundle, cErrorMessage, onComplete.Data)
+		C.free(unsafe.Pointer(cBundle))
+		C.free(unsafe.Pointer(cErrorMessage))
 	}()
 }
 
@@ -172,7 +175,9 @@ func _frida_compiler_backend_watch(cProjectRoot, cEntrypoint *C.char, outputForm
 				C.invoke_finished_func(onFinished.Func, onFinished.Data)
 			},
 			OnOutput: func(bundle string) {
-				C.invoke_output_func(onOutput.Func, C.CString(bundle), onOutput.Data)
+				cBundle := C.CString(bundle)
+				C.invoke_output_func(onOutput.Func, cBundle, onOutput.Data)
+				C.free(unsafe.Pointer(cBundle))
 			},
 			OnDiagnostic: makeCBuildDiagnosticCallback(onDiagnostic),
 		}
@@ -187,6 +192,7 @@ func _frida_compiler_backend_watch(cProjectRoot, cEntrypoint *C.char, outputForm
 			cErrorMessage = C.CString(err.Error())
 		}
 		C.invoke_watch_ready_func(onReady.Func, cSession, cErrorMessage, onReady.Data)
+		C.free(unsafe.Pointer(cErrorMessage))
 	}()
 }
 
@@ -220,9 +226,15 @@ func makeCBuildDiagnosticCallback(onDiagnostic *CDelegate[C.FridaDiagnosticFunc]
 		if d.path != "" {
 			cPath = C.CString(d.path)
 		}
+		cCategory := C.CString(d.category)
+		cText := C.CString(d.text)
 
-		C.invoke_diagnostic_func(onDiagnostic.Func, C.CString(d.category), C.int(d.code), cPath, C.int(d.line),
-			C.int(d.character), C.CString(d.text), onDiagnostic.Data)
+		C.invoke_diagnostic_func(onDiagnostic.Func, cCategory, C.int(d.code), cPath, C.int(d.line),
+			C.int(d.character), cText, onDiagnostic.Data)
+
+		C.free(unsafe.Pointer(cCategory))
+		C.free(unsafe.Pointer(cPath))
+		C.free(unsafe.Pointer(cText))
 	}
 }
 

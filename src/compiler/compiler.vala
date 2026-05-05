@@ -146,15 +146,16 @@ namespace Frida {
 			});
 		}
 
-		private void on_output (owned string bundle) {
+		private void on_output (string bundle) {
+			string bundle_copy = bundle;
 			schedule_on_frida_thread (() => {
-				output (bundle);
+				output (bundle_copy);
 				return Source.REMOVE;
 			});
 		}
 
-		private void on_diagnostic (owned string category, int code, owned string? path, int line, int character,
-				owned string text) {
+		private void on_diagnostic (string category, int code, string? path, int line, int character,
+				string text) {
 			var diag = new Diagnostic () {
 				category = category,
 				code = code,
@@ -342,13 +343,13 @@ namespace Frida {
 #endif
 		}
 
-		private delegate void BuildCompleteFunc (owned string? bundle, owned string? error_message);
-		private delegate void WatchReadyFunc (size_t session_handle, owned string? error_message);
+		private delegate void BuildCompleteFunc (string? bundle, string? error_message);
+		private delegate void WatchReadyFunc (size_t session_handle, string? error_message);
 		private delegate void StartingFunc ();
 		private delegate void FinishedFunc ();
-		private delegate void OutputFunc (owned string bundle);
-		private delegate void DiagnosticFunc (owned string category, int code, owned string? path, int line, int character,
-			owned string text);
+		private delegate void OutputFunc (string bundle);
+		private delegate void DiagnosticFunc (string category, int code, string? path, int line, int character,
+			string text);
 
 #if HAVE_COMPILER_BACKEND && (COMPILER_BACKEND_EMBEDDED_LIBRARY || COMPILER_BACKEND_INSTALLED_LIBRARY)
 		private T resolve_symbol<T> (Module m, string name) {
