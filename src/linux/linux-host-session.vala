@@ -2053,7 +2053,7 @@ namespace Frida {
 			try {
 				var hello = yield connection.read_hello (io_cancellable);
 
-				if (hello.package_name == CHROME_ZYGOTE_PACKAGE_NAME) {
+				if (hello.process_name == CHROME_ZYGOTE_PACKAGE_NAME) {
 					var patches = zymbiote_patches[hello.ppid];
 					if (patches != null)
 						zymbiote_patches[hello.pid] = patches;
@@ -2068,12 +2068,17 @@ namespace Frida {
 
 				bool needs_resume = false;
 
+				string package_name = hello.process_name;
+				int colon = package_name.index_of_char (':');
+				if (colon != -1)
+					package_name = package_name[:colon];
+
 				Promise<uint> spawn_request;
-				if (spawn_requests.unset (hello.package_name, out spawn_request)) {
+				if (spawn_requests.unset (package_name, out spawn_request)) {
 					spawn_request.resolve (hello.pid);
 					needs_resume = true;
 				} else if (spawn_gating_enabled) {
-					var spawn_info = HostSpawnInfo (hello.pid, hello.package_name);
+					var spawn_info = HostSpawnInfo (hello.pid, hello.process_name);
 					pending_spawn[hello.pid] = spawn_info;
 					spawn_added (spawn_info);
 					needs_resume = true;
@@ -2139,10 +2144,10 @@ namespace Frida {
 				try {
 					yield prepare_to_read (header_size, cancellable);
 
-					uint32 package_name_len = 0;
-					input.peek ((uint8[]) &package_name_len, 8);
+					uint32 process_name_len = 0;
+					input.peek ((uint8[]) &process_name_len, 8);
 
-					size_t message_size = header_size + package_name_len;
+					size_t message_size = header_size + process_name_len;
 
 					yield prepare_to_read (message_size, cancellable);
 
@@ -2150,12 +2155,12 @@ namespace Frida {
 					uint32 pid = r.read_uint32 ();
 					uint32 ppid = r.read_uint32 ();
 					r.skip (4);
-					string package_name = r.read_fixed_string (package_name_len);
+					string process_name = r.read_fixed_string (process_name_len);
 
 					hello = new Hello () {
 						pid = pid,
 						ppid = ppid,
-						package_name = package_name,
+						process_name = process_name,
 					};
 
 					return hello;
@@ -2169,7 +2174,7 @@ namespace Frida {
 			public class Hello {
 				public uint pid;
 				public uint ppid;
-				public string package_name;
+				public string process_name;
 			}
 
 			public async void resume (Cancellable? cancellable) throws Error, IOError {

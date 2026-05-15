@@ -16,7 +16,7 @@ struct _ZymbioteContext
   size_t payload_size;
   size_t payload_original_protection;
 
-  char * package_name;
+  char * process_name;
 
   int     (* original_setcontext) (uid_t uid, bool is_system_server, const char * seinfo, const char * name);
   void    (* original_set_argv0) (JNIEnv * env, jobject clazz, jstring name);
@@ -43,7 +43,7 @@ ZymbioteContext zymbiote =
 int frida_zymbiote_replacement_setargv0 (JNIEnv * env, jobject clazz, jstring name);
 int frida_zymbiote_replacement_setcontext (uid_t uid, bool is_system_server, const char * seinfo, const char * name);
 
-static void frida_wait_for_permission_to_resume (const char * package_name, bool * revert_now);
+static void frida_wait_for_permission_to_resume (const char * process_name, bool * revert_now);
 
 static int frida_stop_and_return_from_setargv0 (JNIEnv * env, jobject clazz, jstring name);
 
@@ -65,10 +65,10 @@ frida_zymbiote_replacement_setcontext (uid_t uid, bool is_system_server, const c
   if (res == -1)
     return -1;
 
-  if (zymbiote.package_name == NULL)
+  if (zymbiote.process_name == NULL)
   {
     zymbiote.mprotect (zymbiote.payload_base, zymbiote.payload_size, PROT_READ | PROT_WRITE | PROT_EXEC);
-    zymbiote.package_name = zymbiote.strdup (name);
+    zymbiote.process_name = zymbiote.strdup (name);
   }
 
   return res;
@@ -84,17 +84,17 @@ frida_zymbiote_replacement_setargv0 (JNIEnv * env, jobject clazz, jstring name)
 
   zymbiote.original_set_argv0 (env, clazz, name);
 
-  if (zymbiote.package_name != NULL)
-    name_utf8 = zymbiote.package_name;
+  if (zymbiote.process_name != NULL)
+    name_utf8 = zymbiote.process_name;
   else
     name_utf8 = (*env)->GetStringUTFChars (env, name, NULL);
 
   frida_wait_for_permission_to_resume (name_utf8, &revert_now);
 
-  if (zymbiote.package_name != NULL)
+  if (zymbiote.process_name != NULL)
   {
-    zymbiote.free (zymbiote.package_name);
-    zymbiote.package_name = NULL;
+    zymbiote.free (zymbiote.process_name);
+    zymbiote.process_name = NULL;
     zymbiote.mprotect (zymbiote.payload_base, zymbiote.payload_size, zymbiote.payload_original_protection);
   }
   else
@@ -112,7 +112,7 @@ frida_zymbiote_replacement_setargv0 (JNIEnv * env, jobject clazz, jstring name)
 }
 
 static void
-frida_wait_for_permission_to_resume (const char * package_name, bool * revert_now)
+frida_wait_for_permission_to_resume (const char * process_name, bool * revert_now)
 {
   int fd;
   struct sockaddr_un addr;
@@ -151,22 +151,22 @@ frida_wait_for_permission_to_resume (const char * package_name, bool * revert_no
     {
       uint32_t pid;
       uint32_t ppid;
-      uint32_t package_name_len;
+      uint32_t process_name_len;
     } header;
     struct iovec iov[2];
 
     header.pid = zymbiote.getpid ();
     header.ppid = zymbiote.getppid ();
 
-    header.package_name_len = 0;
-    while (package_name[header.package_name_len] != '\0')
-      header.package_name_len++;
+    header.process_name_len = 0;
+    while (process_name[header.process_name_len] != '\0')
+      header.process_name_len++;
 
     iov[0].iov_base = &header;
     iov[0].iov_len = sizeof (header);
 
-    iov[1].iov_base = (void *) package_name;
-    iov[1].iov_len = header.package_name_len;
+    iov[1].iov_base = (void *) process_name;
+    iov[1].iov_len = header.process_name_len;
 
     if (!frida_sendmsg_all (fd, iov, 2, MSG_NOSIGNAL))
       goto beach;
