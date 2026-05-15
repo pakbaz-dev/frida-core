@@ -699,9 +699,11 @@ namespace Frida {
 				PackageRole role) {
 			var specs = new Gee.ArrayList<MutationSpec> ();
 			foreach (string raw_spec in raw_specs) {
-				var parts = raw_spec.split ("@", 2);
-				unowned string name = parts[0];
-				string range = (parts.length == 2) ? parts[1] : "";
+				int sep_offset = raw_spec.has_prefix ("@") ? 1 : 0;
+				int sep = raw_spec.index_of_char ('@', sep_offset);
+
+				string name = (sep != -1) ? raw_spec[:sep] : raw_spec;
+				string range = (sep != -1) ? raw_spec[sep + 1:] : "";
 
 				specs.add (new MutationSpec () {
 					kind = kind,
